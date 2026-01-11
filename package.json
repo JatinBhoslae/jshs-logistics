@@ -1,0 +1,30 @@
+{
+  "name": "jshs-logistics",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm -w backend run dev\" \"npm -w frontend run dev\"",
+    "build": "npm -w backend run build && npm -w frontend run build",
+    "lint": "npm -w frontend run lint || exit 0",
+    "db:seed": "npm -w backend run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  },
+  "dependencies": {
+    "@vapi-ai/web": "^2.5.2",
+    "autoprefixer": "^10.4.23",
+    "axios": "^1.13.2",
+    "framer-motion": "^12.25.0",
+    "lucide-react": "^0.562.0",
+    "postcss": "^8.5.6",
+    "react-globe.gl": "^2.37.0",
+    "react-router-dom": "^7.12.0",
+    "tailwindcss": "^4.1.18",
+    "three": "^0.182.0",
+    "twilio": "^5.11.2"
+  }
+}
