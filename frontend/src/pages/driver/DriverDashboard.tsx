@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { shipmentApi } from '../../services/apiService'
+import { shipmentApi, routesApi } from '../../services/apiService'
 import { useAuth } from '../../auth/AuthContext'
 import { motion } from 'framer-motion'
 import {
@@ -13,9 +13,13 @@ import {
 import ErrorDisplay from '../../components/ErrorDisplay'
 import Skeleton from '../../components/Skeleton'
 import type { Shipment } from '../../types'
+import { useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 export default function DriverDashboard() {
     const { user, isLoading: authLoading } = useAuth()
+    const [optimizing, setOptimizing] = useState(false)
+    const [optimized, setOptimized] = useState<any | null>(null)
 
     const { data: assignments, isLoading, isError, refetch } = useQuery<Shipment[]>({
         queryKey: ['driver-assignments', user?.id],
@@ -58,6 +62,27 @@ export default function DriverDashboard() {
                     </div>
                     <h1 className="text-3xl font-black tracking-tight mb-2">Safe Journey, {user?.name.split(' ')[0]}!</h1>
                     <p className="text-slate-400 font-medium max-w-md">Your vehicle is healthy and ready for deployment. Manage your assigned payloads below.</p>
+                    <div className="mt-4">
+                        <button
+                            onClick={async () => {
+                                if (!user) return
+                                setOptimizing(true)
+                                try {
+                                    const res = await routesApi.optimize(user.id || user._id!)
+                                    setOptimized(res)
+                                    toast.success('Route optimized')
+                                } catch (e: any) {
+                                    toast.error(e?.message || 'Optimization failed')
+                                } finally {
+                                    setOptimizing(false)
+                                }
+                            }}
+                            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-widest"
+                            disabled={optimizing}
+                        >
+                            {optimizing ? 'Optimizing…' : 'Optimize Route'}
+                        </button>
+                    </div>
                 </div>
             </motion.div>
 
@@ -146,6 +171,32 @@ export default function DriverDashboard() {
                             <p className="text-[10px] text-slate-500 mt-3 font-bold uppercase tracking-widest text-center">Platinum Driver Status</p>
                         </div>
                     </div>
+                    {optimized && (
+                        <div className="glass-card p-6 border-none shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tighter text-sm">Optimized Delivery Order</h3>
+                                <span className="text-blue-600 font-black">{Math.round(optimized.totalDistanceKm)} km • {optimized.estimatedTimeMin} min</span>
+                            </div>
+                            <div className="space-y-2">
+                                {optimized.stops.map((s: any) => (
+                                    <div key={s.shipmentId} className="flex items-center gap-3">
+                                        <div className="h-6 w-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">{s.order}</div>
+                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-400">{s.latitude.toFixed(4)}, {s.longitude.toFixed(4)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            {optimized.origin && optimized.stops?.[0] && (
+                                <a
+                                    href={`https://www.google.com/maps/dir/?api=1&origin=${optimized.origin.lat},${optimized.origin.lng}&destination=${optimized.stops[0].latitude},${optimized.stops[0].longitude}&travelmode=driving`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest"
+                                >
+                                    Start Navigation
+                                </a>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

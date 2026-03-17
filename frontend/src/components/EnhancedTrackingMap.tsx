@@ -26,10 +26,10 @@ const destinationIcon = new L.Icon({
 });
 
 const truckIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-  popupAnchor: [0, -18]
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2554/2554978.png', // Reliable Truck Icon
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+  popupAnchor: [0, -20]
 });
 
 interface EnhancedTrackingMapProps {
@@ -227,7 +227,16 @@ export default function EnhancedTrackingMap({ shipment, locations, liveLocation 
 
         {shipment.routeGeoJson ? (
           <>
-            <GeoJSON key={`route-${shipment._id}`} data={shipment.routeGeoJson} style={{ color: '#3b82f6', weight: 6, opacity: 0.4, lineCap: 'round' }} />
+            <GeoJSON 
+              key={`route-${shipment._id}-${JSON.stringify(shipment.routeGeoJson).length}`} 
+              data={shipment.routeGeoJson as any} 
+              style={(feature) => ({
+                color: feature?.properties?.color || '#3b82f6',
+                weight: feature?.properties?.traffic === 'high' ? 8 : 6,
+                opacity: 0.6,
+                lineCap: 'round'
+              })} 
+            />
             <Polyline positions={[origin, destination]} color="#64748b" weight={2} opacity={0.2} dashArray="5, 10" />
           </>
         ) : (

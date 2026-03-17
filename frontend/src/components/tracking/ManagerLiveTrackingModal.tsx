@@ -34,14 +34,15 @@ export default function ManagerLiveTrackingModal({ shipmentId, onClose }: Manage
     useEffect(() => {
         if (!socket || !shipmentId) return;
 
-        socket.emit('join-shipment', shipmentId);
-        socket.on('location-update', (location: { lat: number; lng: number }) => {
-            setLiveLocation(location);
+        socket.emit('join:shipment', { shipmentId });
+        socket.on('shipment:locationUpdate', (msg: any) => {
+            if (msg.shipmentId !== shipmentId) return;
+            setLiveLocation({ lat: msg.lat, lng: msg.lng });
         });
 
         return () => {
-            socket.emit('leave-shipment', shipmentId);
-            socket.off('location-update');
+            socket.emit('leave:shipment', { shipmentId });
+            socket.off('shipment:locationUpdate');
         };
     }, [socket, shipmentId]);
 

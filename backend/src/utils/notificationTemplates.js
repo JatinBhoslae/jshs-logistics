@@ -11,7 +11,7 @@ export function getNotificationTemplate(eventType, shipment, role = 'CUSTOMER') 
         SHIPMENT_CREATED: {
             default: { title: 'Order Placed', message: `Shipment ${ref} has been created.`, severity: 'INFO' },
             CUSTOMER: { title: 'Order Placed', message: `Your order ${ref} has been placed successfully.`, severity: 'SUCCESS' },
-            MANAGER: { title: 'New Shipment', message: `New shipment ${ref} created.`, severity: 'INFO' }
+            MANAGER: { title: 'New Shipment Request', message: `New shipment ${ref} created and awaiting approval.`, severity: 'WARNING', importance: 'HIGH' }
         },
         SHIPMENT_ASSIGNED: {
             default: { title: 'Driver Assigned', message: `Shipment ${ref} has been assigned.`, severity: 'INFO' },

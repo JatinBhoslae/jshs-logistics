@@ -158,3 +158,10 @@ export const simulationApi = {
     return response.data;
   }
 };
+
+export const routesApi = {
+  optimize: async (driverId: string): Promise<any> => {
+    const response = await api.post('/routes/optimize', { driverId });
+    return response.data;
+  }
+}

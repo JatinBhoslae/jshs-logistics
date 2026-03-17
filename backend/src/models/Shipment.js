@@ -57,6 +57,19 @@ const shipmentSchema = new mongoose.Schema(
     routeGeoJson: { type: Object },
     routeUpdatedAt: { type: Date },
     currentRouteIndex: { type: Number, default: 0 }, // Tracks progress index along routeGeoJson coordinates
+    optimizedRoute: {
+      driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      stops: [
+        {
+          shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipment' },
+          order: { type: Number },
+          latitude: { type: Number },
+          longitude: { type: Number }
+        }
+      ],
+      totalDistance: { type: Number },
+      estimatedTime: { type: Number }
+    },
 
     status: { type: String, enum: SHIPMENT_STATUS, default: 'CREATED', index: true },
     assignedVehicleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', index: true },

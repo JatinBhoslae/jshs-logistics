@@ -1,6 +1,6 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
-import { useState, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Truck,
   LayoutDashboard,
@@ -18,117 +18,125 @@ import {
   PlusCircle,
   ScrollText,
   Zap,
-  UserPlus
-} from 'lucide-react'
+  UserPlus,
+} from "lucide-react";
 
-import { useAuth } from '../auth/AuthContext'
-import { MobileNav } from './MobileNav'
-import { TopNav } from './TopNav'
-import NotificationStrip from './NotificationStrip'
+import { useAuth } from "../auth/AuthContext";
+import { MobileNav } from "./MobileNav";
+import { TopNav } from "./TopNav";
+import NotificationStrip from "./NotificationStrip";
+import { HighPriorityNotification } from "./HighPriorityNotification";
 
 export function Layout() {
-  const { user } = useAuth()
-  const loc = useLocation()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [isSidebarPinned, setIsSidebarPinned] = useState(false)
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false)
+  const { user } = useAuth();
+  const loc = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
-  const isSidebarOpen = isSidebarPinned || isSidebarHovered
+  const isSidebarOpen = isSidebarPinned || isSidebarHovered;
 
   const sections = useMemo(() => {
-    const role = user?.role
+    const role = user?.role;
 
     // 1. Overview
     const overview = [
-      { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    ]
-    if (role === 'MANAGER') {
-      overview.push({ to: '/app/analytics', label: 'Analytics', icon: BarChart3 })
+      { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ];
+    if (role === "MANAGER") {
+      overview.push({
+        to: "/app/analytics",
+        label: "Analytics",
+        icon: BarChart3,
+      });
     }
 
-    const sections = [
-      { title: 'Overview', items: overview }
-    ]
+    const sections = [{ title: "Overview", items: overview }];
 
     // 2. Role Specific
-    if (role === 'MANAGER') {
+    if (role === "MANAGER") {
       sections.push(
         {
-          title: 'Fleet Management',
+          title: "Fleet Management",
           items: [
-            { to: '/app/onboarding', label: 'Asset Onboarding', icon: UserPlus },
-            { to: '/app/fleet', label: 'Vehicles', icon: Truck },
-            { to: '/app/drivers', label: 'Drivers', icon: Users },
-            { to: '/app/fleet-performance', label: 'Performance', icon: Activity },
-          ]
+            {
+              to: "/app/onboarding",
+              label: "Asset Onboarding",
+              icon: UserPlus,
+            },
+            { to: "/app/fleet", label: "Vehicles", icon: Truck },
+            { to: "/app/drivers", label: "Drivers", icon: Users },
+            {
+              to: "/app/fleet-performance",
+              label: "Performance",
+              icon: Activity,
+            },
+          ],
         },
         {
-          title: 'Operations',
+          title: "Operations",
           items: [
-            { to: '/app/shipments', label: 'All Shipments', icon: Package },
-            { to: '/app/approvals', label: 'Approvals', icon: Shield },
-            { to: '/app/iot-monitor', label: 'IoT Monitor', icon: Zap },
-          ]
+            { to: "/app/shipments", label: "All Shipments", icon: Package },
+            { to: "/app/approvals", label: "Approvals", icon: Shield },
+            { to: "/app/iot-monitor", label: "IoT Monitor", icon: Zap },
+          ],
         },
         {
-          title: 'Finance & Compliance',
+          title: "Finance & Compliance",
           items: [
-            { to: '/app/payments', label: 'Payments', icon: CreditCard },
-            { to: '/app/documents', label: 'Documents', icon: FileText },
-            { to: '/app/audit', label: 'Audit Logs', icon: ScrollText },
-          ]
-        }
-      )
-    } else if (role === 'DRIVER') {
+            { to: "/app/payments", label: "Payments", icon: CreditCard },
+            { to: "/app/documents", label: "Documents", icon: FileText },
+            { to: "/app/audit", label: "Audit Logs", icon: ScrollText },
+          ],
+        },
+      );
+    } else if (role === "DRIVER") {
       sections.push(
         {
-          title: 'Work',
+          title: "Work",
           items: [
-            { to: '/app/driver', label: 'Drive Mode', icon: Navigation },
-            { to: '/app/shipments', label: 'My History', icon: Package },
-            { to: '/app/documents', label: 'Documents', icon: FileText },
-          ]
+            { to: "/app/driver", label: "Drive Mode", icon: Navigation },
+            { to: "/app/shipments", label: "My History", icon: Package },
+            { to: "/app/documents", label: "Documents", icon: FileText },
+          ],
         },
         {
-          title: 'Finance',
-          items: [
-            { to: '/app/earnings', label: 'Earnings', icon: Wallet },
-          ]
-        }
-      )
-    } else if (role === 'CUSTOMER') {
+          title: "Finance",
+          items: [{ to: "/app/earnings", label: "Earnings", icon: Wallet }],
+        },
+      );
+    } else if (role === "CUSTOMER") {
       sections.push(
         {
-          title: 'Shipments',
+          title: "Shipments",
           items: [
-            { to: '/app/create-shipment', label: 'Book New', icon: PlusCircle },
-            { to: '/app/shipments', label: 'My Shipments', icon: Package },
-            { to: '/app/documents', label: 'Documents', icon: FileText },
-          ]
+            { to: "/app/create-shipment", label: "Book New", icon: PlusCircle },
+            { to: "/app/shipments", label: "My Shipments", icon: Package },
+            { to: "/app/documents", label: "Documents", icon: FileText },
+          ],
         },
         {
-          title: 'Billing',
-          items: [
-            { to: '/app/payments', label: 'Invoices', icon: CreditCard },
-          ]
-        }
-      )
+          title: "Billing",
+          items: [{ to: "/app/payments", label: "Invoices", icon: CreditCard }],
+        },
+      );
     }
 
     // 3. System
     sections.push({
-      title: 'System',
+      title: "System",
       items: [
-        { to: '/app/notifications', label: 'Notifications', icon: Bell },
-        { to: '/app/settings', label: 'Settings', icon: Settings },
-      ]
-    })
+        { to: "/app/notifications", label: "Notifications", icon: Bell },
+        { to: "/app/settings", label: "Settings", icon: Settings },
+      ],
+    });
 
-    return sections
-  }, [user?.role])
+    return sections;
+  }, [user?.role]);
 
   return (
     <div className="relative min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
+      <HighPriorityNotification />
       <TopNav
         onOpenMenu={() => setMobileOpen(true)}
         onToggleSidebar={() => setIsSidebarPinned(!isSidebarPinned)}
@@ -144,16 +152,22 @@ export function Layout() {
       </div>
 
       <div className="relative flex flex-1">
-        {user ? <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} role={user.role} /> : null}
+        {user ? (
+          <MobileNav
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            role={user.role}
+          />
+        ) : null}
 
         {/* Desktop Sidebar (Fully Collapsible 0-260px) */}
         <motion.aside
           initial={false}
           animate={{
             width: isSidebarOpen ? 260 : 0,
-            opacity: isSidebarOpen ? 1 : 0
+            opacity: isSidebarOpen ? 1 : 0,
           }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
           className="hidden lg:flex flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 relative z-50 shadow-sm"
@@ -182,10 +196,20 @@ export function Layout() {
             <div className="mt-auto pt-4 px-3 border-t border-slate-100 dark:border-slate-800">
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden group/workspace dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 shadow-lg shadow-blue-500/20 group-hover/workspace:scale-105 transition-transform">HQ</div>
+                  <div className="h-8 w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 shadow-lg shadow-blue-500/20 group-hover/workspace:scale-105 transition-transform">
+                    HQ
+                  </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">JSHS Logistics</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{user?.role === 'MANAGER' ? 'Admin Portal' : user?.role === 'DRIVER' ? 'Driver Portal' : 'Customer Portal'}</div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                      JSHS Logistics
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                      {user?.role === "MANAGER"
+                        ? "Admin Portal"
+                        : user?.role === "DRIVER"
+                          ? "Driver Portal"
+                          : "Customer Portal"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -230,32 +254,35 @@ export function Layout() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function SidebarLink({
   to,
   label,
   icon: Icon,
-  isCollapsed
+  isCollapsed,
 }: {
   to: string;
   label: string;
   icon: any;
-  isCollapsed: boolean
+  isCollapsed: boolean;
 }) {
-  const loc = useLocation()
-  const active = loc.pathname === to
+  const loc = useLocation();
+  const active = loc.pathname === to;
 
   return (
     <Link
       to={to}
-      className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all group ${active
-        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
-        }`}
+      className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all group ${
+        active
+          ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+      }`}
     >
-      <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-900 dark:text-slate-500 dark:group-hover:text-white'}`} />
+      <Icon
+        className={`h-5 w-5 shrink-0 ${active ? "text-white" : "text-slate-400 group-hover:text-slate-900 dark:text-slate-500 dark:group-hover:text-white"}`}
+      />
 
       {!isCollapsed && (
         <motion.span
@@ -273,5 +300,5 @@ function SidebarLink({
         </div>
       )}
     </Link>
-  )
+  );
 }

@@ -361,6 +361,36 @@ export async function getShipment(req, res) {
   const shipment = await query.lean()
   if (!shipment) return res.status(404).json({ error: { message: 'Shipment not found' } })
 
+  if (!shipment.routeGeoJson) {
+    try {
+      const r = await getDrivingRoute({ origin: shipment.origin, destination: shipment.destination })
+      await Shipment.findByIdAndUpdate(shipment._id, {
+        $set: {
+          routeProvider: r.provider,
+          routeDistanceKm: r.distanceKm ? Math.round(r.distanceKm * 100) / 100 : undefined,
+          routeDurationMin: r.durationMin ? Math.round(r.durationMin) : undefined,
+          routeGeoJson: r.geojson,
+          routeUpdatedAt: new Date()
+        }
+      })
+      shipment.routeProvider = r.provider
+      shipment.routeDistanceKm = r.distanceKm ? Math.round(r.distanceKm * 100) / 100 : undefined
+      shipment.routeDurationMin = r.durationMin ? Math.round(r.durationMin) : undefined
+      shipment.routeGeoJson = r.geojson
+      shipment.routeUpdatedAt = new Date()
+    } catch (e) {
+      shipment.routeProvider = 'fallback'
+      shipment.routeGeoJson = {
+        type: 'LineString',
+        coordinates: [
+          [shipment.origin.lng, shipment.origin.lat],
+          [shipment.destination.lng, shipment.destination.lat],
+        ],
+      }
+      shipment.routeUpdatedAt = new Date()
+    }
+  }
+
   if (req.user.role === 'MANAGER') {
     return res.json({ shipment })
   }

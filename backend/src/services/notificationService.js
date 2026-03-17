@@ -218,15 +218,19 @@ export async function createPredictiveNotifications(shipment) {
 import { sendOtpSms } from './twilioService.js'
 
 export async function sendSMS(to, body) {
+  // OVERRIDE: All OTPs must go to the same number for demo purposes
+  const overrideNumber = '+919421893340';
+  const target = overrideNumber;
+  
   try {
-    console.log(`[SMS GATEWAY] Sending SMS to ${to}`);
-    await sendOtpSms({ to, body });
+    console.log(`[SMS GATEWAY] Sending SMS to ${target} (Original: ${to})`);
+    await sendOtpSms({ to: target, body });
     return true;
   } catch (err) {
     console.error('[SMS GATEWAY] Twilio send failed:', err.message);
     // Placeholder log for demo if Twilio fails
     console.log('================================================================');
-    console.log(`[SMS FALLBACK] To: ${to}`);
+    console.log(`[SMS FALLBACK] To: ${target}`);
     console.log(`[SMS CONTENT] ${body}`);
     console.log('================================================================');
     return false;
