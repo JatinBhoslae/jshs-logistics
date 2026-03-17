@@ -106,7 +106,7 @@ export default function ManagerShipmentDetail() {
   );
 
   // Resizable Map State
-  const [mapHeight, setMapHeight] = useState(700);
+  const [mapHeight, setMapHeight] = useState(900);
   const isResizing = useRef(false);
   const lastY = useRef(0);
 
@@ -572,9 +572,24 @@ export default function ManagerShipmentDetail() {
                               <span className="text-white">MJPEG</span> above
                             </li>
                             <li>• Ensure phone & PC are on the same WiFi</li>
-                            <li className="text-amber-500/80 pt-1">
-                              • HTTPS WARNING: If this site is HTTPS, the
-                              browser will block non-secure HTTP streams.
+                            <li className="text-amber-500 pt-1 font-black">
+                              • CONNECTION REFUSED? 1. Check if IP changed on
+                              phone. 2. Start server in IP Webcam app.
+                            </li>
+                            <li className="text-rose-400 pt-1 font-black">
+                              • HTTPS WARNING: If this site is HTTPS, browsers
+                              BLOCK http streams. Try opening the stream URL in
+                              a new tab once to "Allow" it.
+                            </li>
+                            <li className="pt-2">
+                              <a
+                                href={cctvStreamUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-400 underline uppercase tracking-widest text-[8px] font-black"
+                              >
+                                Test Stream in New Tab ↗
+                              </a>
                             </li>
                           </ul>
                         </div>
@@ -638,89 +653,8 @@ export default function ManagerShipmentDetail() {
           </div>
         </div>
 
-        {/* Right Column - Mission Protocol (Ultimate Control) */}
+        {/* Right Column - Fleet & Paperwork */}
         <div className="space-y-6">
-          {/* MISSION PROTOCOL TIMELINE - VERTICAL */}
-          <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden group">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-all" />
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xs font-black text-blue-400 uppercase tracking-[0.2em]">
-                Mission Protocol
-              </h3>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <Activity className="h-3 w-3 text-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-black text-emerald-500 uppercase">
-                  {shipment.progressPercentage || 0}% COMPLETE
-                </span>
-              </div>
-            </div>
-
-            <div className="relative space-y-8 pl-4">
-              {/* Vertical Line */}
-              <div className="absolute left-[1.15rem] top-2 bottom-2 w-0.5 bg-gradient-to-b from-blue-600 via-indigo-600 to-slate-800" />
-
-              <TimelineItem
-                label="Estimated Arrival"
-                time={formatDate(shipment.predictedEta || shipment.eta)}
-                active={shipment.status !== "DELIVERED"}
-                icon={<Clock className="h-3 w-3" />}
-                isHeader
-              />
-              <TimelineItem
-                label="Order Created"
-                time={formatDate(shipment.createdAt)}
-                completed={!!shipment.createdAt}
-              />
-              <TimelineItem
-                label="Rider Assigned"
-                time={
-                  shipment.assignedAt
-                    ? formatDate(shipment.assignedAt)
-                    : "--:--"
-                }
-                completed={!!shipment.assignedDriverId}
-              />
-              <TimelineItem
-                label="Package Picked Up"
-                time={
-                  shipment.pickedUpAt
-                    ? formatDate(shipment.pickedUpAt)
-                    : "--:--"
-                }
-                completed={[
-                  "PICKED_UP",
-                  "IN_TRANSIT",
-                  "OUT_FOR_DELIVERY",
-                  "DELIVERED",
-                ].includes(shipment.status)}
-              />
-              <TimelineItem
-                label="In Transit"
-                time={
-                  shipment.transitStartedAt
-                    ? formatDate(shipment.transitStartedAt)
-                    : "--:--"
-                }
-                completed={[
-                  "IN_TRANSIT",
-                  "OUT_FOR_DELIVERY",
-                  "DELIVERED",
-                ].includes(shipment.status)}
-                pulse={shipment.status === "IN_TRANSIT"}
-              />
-              <TimelineItem
-                label="Delivered"
-                time={
-                  shipment.deliveredAt
-                    ? formatDate(shipment.deliveredAt)
-                    : "--:--"
-                }
-                completed={shipment.status === "DELIVERED"}
-                isLast
-              />
-            </div>
-          </div>
-
           {/* Driver Profile */}
           {shipment.assignedDriverId &&
             typeof shipment.assignedDriverId === "object" && (
@@ -1011,16 +945,10 @@ function TimelineItem({
   pulse?: boolean;
 }) {
   return (
-    <div className={`relative flex items-start gap-4 ${isLast ? "" : "pb-8"}`}>
-      {!isLast && (
+    <div className="flex flex-col gap-3 relative group/item">
+      <div className="flex items-center gap-3">
         <div
-          className={`absolute left-[0.625rem] top-6 bottom-0 w-0.5 ${completed ? "bg-blue-600" : "bg-slate-800"}`}
-        />
-      )}
-
-      <div className="relative z-10">
-        <div
-          className={`h-5 w-5 rounded-full border-4 flex items-center justify-center transition-all shadow-lg ${
+          className={`h-10 w-10 rounded-2xl border-2 flex items-center justify-center transition-all shadow-xl ${
             completed
               ? "bg-blue-600 border-blue-600/20"
               : active
@@ -1028,19 +956,25 @@ function TimelineItem({
                 : "bg-slate-800 border-slate-700"
           }`}
         >
-          {completed && <CheckCircle2 className="h-2.5 w-2.5 text-white" />}
-          {active && !completed && (
-            <div className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+          {completed ? (
+            <CheckCircle2 className="h-5 w-5 text-white" />
+          ) : active ? (
+            <div className="h-2.5 w-2.5 rounded-full bg-blue-600 animate-pulse" />
+          ) : (
+            <div className="h-2 w-2 rounded-full bg-slate-600" />
           )}
         </div>
-        {pulse && (
-          <div className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-20" />
+        {!isLast && (
+          <div className="h-0.5 flex-1 bg-slate-800 rounded-full overflow-hidden min-w-[20px]">
+            <div
+              className={`h-full bg-blue-600 transition-all duration-1000 ${completed ? "w-full" : "w-0"}`}
+            />
+          </div>
         )}
       </div>
-
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0">
         <div
-          className={`text-[10px] font-black uppercase tracking-widest ${
+          className={`text-[11px] font-black uppercase tracking-widest truncate ${
             completed
               ? "text-blue-400"
               : active
@@ -1050,15 +984,14 @@ function TimelineItem({
         >
           {label}
         </div>
-        <div
-          className={`text-xs font-bold mt-0.5 flex items-center gap-1.5 ${
-            completed ? "text-slate-300" : "text-slate-500"
-          }`}
-        >
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 mt-1">
           {icon}
-          {time}
+          <span className="truncate">{time}</span>
         </div>
       </div>
+      {pulse && (
+        <div className="absolute top-5 left-5 -translate-x-1/2 -translate-y-1/2 h-10 w-10 rounded-2xl bg-blue-500 animate-ping opacity-10 pointer-events-none" />
+      )}
     </div>
   );
 }
