@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 
 import { api } from "../../lib/api";
+import { SOCKET_URL } from "../../lib/socket";
 import { useShipmentData } from "../../hooks/useShipmentData";
 import { useDateTimeFormatter } from "../../hooks/useDateTimeFormatter";
 import { useAuth } from "../../auth/AuthContext";
@@ -93,16 +94,16 @@ export default function ManagerShipmentDetail() {
 
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [cctvStreamUrl, setCctvStreamUrl] = useState<string>(
-    localStorage.getItem(`cctv_${id}`) || "",
+    (localStorage.getItem(`cctv_${id}`) || "").trim(),
   );
   const [tempStreamUrl, setTempStreamUrl] = useState<string>(
-    localStorage.getItem(`cctv_${id}`) || "",
+    (localStorage.getItem(`cctv_${id}`) || "").trim(),
   );
   const [isCCTVPlaying, setIsCCTVPlaying] = useState(true);
   const [cctvError, setCctvError] = useState("");
   const [cctvSignal, setCctvSignal] = useState<any>(null);
-  const [streamMode, setStreamMode] = useState<"VIDEO" | "MJPEG">(
-    (localStorage.getItem(`cctv_mode_${id}`) as any) || "MJPEG",
+  const [streamMode, setStreamMode] = useState<"VIDEO" | "MJPEG" | "PROXY">(
+    (localStorage.getItem(`cctv_mode_${id}`) as any) || "PROXY",
   );
 
   // Resizable Map State
@@ -150,6 +151,22 @@ export default function ManagerShipmentDetail() {
       cctvSocket.off("cctv:signal");
     };
   }, [cctvSocket, id]);
+
+  // Check for localhost mismatch
+  useEffect(() => {
+    const isIpUrl = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(
+      window.location.hostname,
+    );
+    const isLocalhostSocket =
+      SOCKET_URL.includes("localhost") || SOCKET_URL.includes("127.0.0.1");
+
+    if (isIpUrl && isLocalhostSocket) {
+      toast.error(
+        "Network Mismatch: You are accessing via IP, but the backend is still on localhost. Use the server's IP in your .env or let the auto-detector handle it.",
+        { duration: 8000, id: "net-mismatch" },
+      );
+    }
+  }, []);
 
   const [assignDriverId, setAssignDriverId] = useState<string | null>(null);
   const [assignVehicleId, setAssignVehicleId] = useState<string | null>(null);
@@ -262,8 +279,21 @@ export default function ManagerShipmentDetail() {
     live || (lastPing ? { lat: lastPing.lat, lng: lastPing.lng } : null);
 
   const handleSaveCCTV = () => {
-    setCctvStreamUrl(tempStreamUrl);
-    localStorage.setItem(`cctv_${id}`, tempStreamUrl);
+    let cleanUrl = tempStreamUrl.trim();
+    if (cleanUrl.endsWith(":8080") || cleanUrl.endsWith(":8080/")) {
+      cleanUrl = cleanUrl.replace(/\/$/, "") + "/video";
+      setTempStreamUrl(cleanUrl);
+      toast("Auto-appending /video to IP Webcam URL", { icon: "🎥" });
+    }
+
+    if (window.location.protocol === "https:" && cleanUrl.startsWith("http:")) {
+      toast.error(
+        "Mixed Content Warning: You are using an HTTP stream on an HTTPS site. Most browsers will block this. Use PROXY mode below to bypass this.",
+        { duration: 6000 },
+      );
+    }
+    setCctvStreamUrl(cleanUrl);
+    localStorage.setItem(`cctv_${id}`, cleanUrl);
     localStorage.setItem(`cctv_mode_${id}`, streamMode);
     setCctvError("");
     setIsCCTVPlaying(true);
@@ -474,9 +504,16 @@ export default function ManagerShipmentDetail() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() =>
-                    setStreamMode(streamMode === "VIDEO" ? "MJPEG" : "VIDEO")
-                  }
+                  onClick={() => {
+                    const modes: ("VIDEO" | "MJPEG" | "PROXY")[] = [
+                      "VIDEO",
+                      "MJPEG",
+                      "PROXY",
+                    ];
+                    const nextIndex =
+                      (modes.indexOf(streamMode) + 1) % modes.length;
+                    setStreamMode(modes[nextIndex]);
+                  }}
                   className="px-3 py-1.5 rounded-lg bg-white/5 text-[10px] font-black text-slate-400 hover:text-white transition-colors border border-white/10 uppercase"
                 >
                   Mode: {streamMode}
@@ -506,33 +543,112 @@ export default function ManagerShipmentDetail() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2">
                 <div className="relative aspect-video bg-black rounded-[2rem] overflow-hidden border border-white/10 group/video shadow-inner-2xl">
-                  {cctvStreamUrl && isCCTVPlaying ? (
+                  {cctvStreamUrl.trim() && isCCTVPlaying ? (
                     streamMode === "VIDEO" ? (
                       <video
-                        key={cctvStreamUrl}
-                        src={cctvStreamUrl}
+                        key={cctvStreamUrl.trim()}
+                        src={cctvStreamUrl.trim()}
                         autoPlay
                         muted
                         loop
                         playsInline
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          console.error("[CCTV] Video Error:", e);
+                          const isHttps = window.location.protocol === "https:";
+                          const isStreamHttp = cctvStreamUrl
+                            .trim()
+                            .startsWith("http:");
+                          console.error("[CCTV] Video Error:", {
+                            event: e,
+                            url: cctvStreamUrl.trim(),
+                            protocolMismatch: isHttps && isStreamHttp,
+                          });
                           setCctvError(
-                            "Signal Failed. If using IP Webcam Android, switch to MJPEG mode.",
+                            isHttps && isStreamHttp
+                              ? "Browser blocked HTTP stream on HTTPS site. Open the stream URL in a new tab once to 'Allow' it, or use an HTTPS stream."
+                              : "Signal Failed. If using IP Webcam Android, switch to MJPEG mode.",
+                          );
+                        }}
+                      />
+                    ) : streamMode === "MJPEG" ? (
+                      <img
+                        key={cctvStreamUrl.trim()}
+                        src={cctvStreamUrl.trim()}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const isHttps = window.location.protocol === "https:";
+                          const isStreamHttp = cctvStreamUrl
+                            .trim()
+                            .startsWith("http:");
+                          console.error("[CCTV] MJPEG Error:", {
+                            event: e,
+                            url: cctvStreamUrl.trim(),
+                            protocolMismatch: isHttps && isStreamHttp,
+                          });
+                          setCctvError(
+                            isHttps && isStreamHttp
+                              ? "Browser blocked HTTP stream on HTTPS site. Open the stream URL in a new tab once to 'Allow' it, or use an HTTPS stream."
+                              : "Signal Failed. Ensure URL is correct (e.g. http://ip:port/video)",
                           );
                         }}
                       />
                     ) : (
                       <img
-                        key={cctvStreamUrl}
-                        src={cctvStreamUrl}
+                        key={`proxy-${cctvStreamUrl.trim()}`}
+                        src={`${SOCKET_URL}/api/cctv/proxy?url=${encodeURIComponent(cctvStreamUrl.trim())}`}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error("[CCTV] MJPEG Error:", e);
-                          setCctvError(
-                            "Signal Failed. Ensure URL is correct (e.g. http://ip:port/video)",
+                        onError={async (e) => {
+                          console.error("[CCTV] Proxy Error:", e);
+                          const proxyUrl = `${SOCKET_URL}/api/cctv/proxy?url=${encodeURIComponent(cctvStreamUrl.trim())}`;
+
+                          // Use a timeout for the diagnostic fetch
+                          const controller = new AbortController();
+                          const timeoutId = setTimeout(
+                            () => controller.abort(),
+                            3000,
                           );
+
+                          try {
+                            const res = await fetch(proxyUrl, {
+                              signal: controller.signal,
+                            });
+                            clearTimeout(timeoutId);
+                            if (!res.ok) {
+                              const data = await res.json();
+                              setCctvError(
+                                `Proxy Error: ${data.error || res.statusText}`,
+                              );
+                            } else {
+                              // If 200 OK, check if content type is MJPEG
+                              const contentType =
+                                res.headers.get("content-type");
+                              if (
+                                contentType &&
+                                contentType.includes(
+                                  "multipart/x-mixed-replace",
+                                )
+                              ) {
+                                setCctvError(
+                                  "Proxy connected, but the stream is currently interrupted or slow.",
+                                );
+                              } else {
+                                setCctvError(
+                                  `Invalid Stream Format: Received ${contentType || "unknown"}`,
+                                );
+                              }
+                            }
+                          } catch (err: any) {
+                            clearTimeout(timeoutId);
+                            if (err.name === "AbortError") {
+                              setCctvError(
+                                "Proxy timed out. The camera is taking too long to respond.",
+                              );
+                            } else {
+                              setCctvError(
+                                "Proxy Connection Failed. Ensure the backend server is running and can reach the camera.",
+                              );
+                            }
+                          }
                         }}
                       />
                     )
@@ -556,6 +672,33 @@ export default function ManagerShipmentDetail() {
                         <p className="text-rose-200/80 text-xs font-bold leading-relaxed">
                           {cctvError}
                         </p>
+                        <div className="mt-4 flex flex-wrap justify-center gap-2">
+                          {streamMode !== "PROXY" && (
+                            <button
+                              onClick={() => setStreamMode("PROXY")}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-600/20"
+                            >
+                              Try Proxy Mode
+                            </button>
+                          )}
+                          {streamMode === "VIDEO" && (
+                            <button
+                              onClick={() => setStreamMode("MJPEG")}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-600/20"
+                            >
+                              Try MJPEG Mode
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setCctvError("");
+                              setIsCCTVPlaying(true);
+                            }}
+                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                          >
+                            Retry
+                          </button>
+                        </div>
                         <div className="mt-6 text-left bg-black/40 p-4 rounded-2xl border border-white/5">
                           <p className="text-rose-300/80 text-[9px] font-black uppercase tracking-widest mb-2 underline">
                             IP WEBCAM PRO-TIP:
@@ -567,19 +710,28 @@ export default function ManagerShipmentDetail() {
                                 http://IP:PORT/video
                               </span>
                             </li>
+                            <li className="text-emerald-400 font-black">
+                              • PRO-TIP: Append{" "}
+                              <span className="underline">/video</span> to your
+                              IP address (e.g. http://192.168.1.212:8080/video)
+                            </li>
                             <li>
                               • Switch mode to{" "}
-                              <span className="text-white">MJPEG</span> above
+                              <span className="text-white">MJPEG</span> or{" "}
+                              <span className="text-cyan-400">PROXY</span> above
                             </li>
                             <li>• Ensure phone & PC are on the same WiFi</li>
                             <li className="text-amber-500 pt-1 font-black">
                               • CONNECTION REFUSED? 1. Check if IP changed on
-                              phone. 2. Start server in IP Webcam app.
+                              phone. 2. Start server in IP Webcam app. 3. Try
+                              <span className="text-cyan-400"> PROXY</span>{" "}
+                              mode.
                             </li>
                             <li className="text-rose-400 pt-1 font-black">
                               • HTTPS WARNING: If this site is HTTPS, browsers
-                              BLOCK http streams. Try opening the stream URL in
-                              a new tab once to "Allow" it.
+                              BLOCK http streams. Use{" "}
+                              <span className="text-cyan-400">PROXY</span> mode
+                              to bypass this.
                             </li>
                             <li className="pt-2">
                               <a
@@ -618,13 +770,63 @@ export default function ManagerShipmentDetail() {
                       <label className="text-[9px] font-black text-slate-500 uppercase block mb-2 ml-1 tracking-widest">
                         Target Endpoint
                       </label>
-                      <input
-                        type="text"
-                        placeholder="http://192.168.1.100:8080/video"
-                        value={tempStreamUrl}
-                        onChange={(e) => setTempStreamUrl(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold focus:ring-4 focus:ring-blue-500/20 transition-all outline-none shadow-inner"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="http://192.168.1.100:8080/video"
+                          value={tempStreamUrl}
+                          onChange={(e) => setTempStreamUrl(e.target.value)}
+                          className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold focus:ring-4 focus:ring-blue-500/20 transition-all outline-none shadow-inner"
+                        />
+                        <button
+                          onClick={async () => {
+                            const cleanUrl = tempStreamUrl.trim();
+                            if (!cleanUrl)
+                              return toast.error("Enter a URL first");
+
+                            const isLocalCamera =
+                              cleanUrl.includes("192.168.") ||
+                              cleanUrl.includes("127.0.0.1") ||
+                              cleanUrl.includes("localhost");
+                            const isRemoteProxy =
+                              !SOCKET_URL.includes("localhost") &&
+                              !SOCKET_URL.includes("127.0.0.1");
+
+                            if (isLocalCamera && isRemoteProxy) {
+                              toast.error(
+                                "Local cameras (192.168.x.x) cannot be reached by a remote proxy server. Run the backend locally or use a public camera URL.",
+                                { duration: 6000 },
+                              );
+                              return;
+                            }
+
+                            const testUrl = `${SOCKET_URL}/api/cctv/proxy?url=${encodeURIComponent(cleanUrl)}`;
+                            const tid = toast.loading("Testing endpoint...");
+                            try {
+                              const res = await fetch(testUrl);
+                              if (res.ok) {
+                                toast.success("Stream reachable via Proxy!", {
+                                  id: tid,
+                                });
+                              } else {
+                                const data = await res.json();
+                                toast.error(
+                                  `Test Failed: ${data.error || res.statusText}`,
+                                  { id: tid },
+                                );
+                              }
+                            } catch (err) {
+                              toast.error(
+                                "Network Error: Could not reach backend",
+                                { id: tid },
+                              );
+                            }
+                          }}
+                          className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+                        >
+                          Test
+                        </button>
+                      </div>
                     </div>
                     <button
                       onClick={handleSaveCCTV}

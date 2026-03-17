@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
-import { X, Camera, Settings, Play, Pause, RotateCcw } from "lucide-react";
+import {
+  X,
+  Camera,
+  Settings,
+  Play,
+  Pause,
+  RotateCcw,
+  Shield,
+} from "lucide-react";
 import Modal from "./Modal";
+import { SOCKET_URL } from "../lib/socket";
 
 interface CCTVStreamProps {
   isOpen: boolean;
@@ -19,6 +28,7 @@ export default function CCTVStream({
   const [tempStreamUrl, setTempStreamUrl] = useState(initialStreamUrl || "");
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [useProxy, setUseProxy] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,21 +40,28 @@ export default function CCTVStream({
   }, [initialStreamUrl]);
 
   const handleStreamUrlSubmit = () => {
-    if (!tempStreamUrl.trim()) {
+    let cleanUrl = tempStreamUrl.trim();
+    if (!cleanUrl) {
       setError("Please enter a valid stream URL");
       return;
     }
 
+    // Auto-fix IP Webcam URL
+    if (cleanUrl.endsWith(":8080") || cleanUrl.endsWith(":8080/")) {
+      cleanUrl = cleanUrl.replace(/\/$/, "") + "/video";
+      setTempStreamUrl(cleanUrl);
+    }
+
     // Basic URL validation
     try {
-      new URL(tempStreamUrl);
-      setStreamUrl(tempStreamUrl);
+      new URL(cleanUrl);
+      setStreamUrl(cleanUrl);
       setError("");
       setShowSettings(false);
       setIsPlaying(true);
     } catch (e) {
       setError(
-        "Please enter a valid URL (e.g., http://192.168.1.100:8080/stream)",
+        "Please enter a valid URL (e.g., http://192.168.1.100:8080/video)",
       );
     }
   };
@@ -66,8 +83,64 @@ export default function CCTVStream({
     setTimeout(() => setIsLoading(false), 2000);
   };
 
-  const handleVideoError = () => {
-    setError("Failed to load stream. Please check the URL and try again.");
+  const handleVideoError = async (e: any) => {
+    const isHttps = window.location.protocol === "https:";
+    const isStreamHttp = streamUrl.startsWith("http:");
+    console.error("[CCTV] Stream Error:", {
+      event: e,
+      url: streamUrl,
+      protocolMismatch: isHttps && isStreamHttp,
+    });
+
+    if (useProxy) {
+      const proxyUrl = `${SOCKET_URL}/api/cctv/proxy?url=${encodeURIComponent(streamUrl)}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      try {
+        const res = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          const data = await res.json();
+          setError(`Proxy Error: ${data.error || res.statusText}`);
+        } else {
+          const contentType = res.headers.get("content-type");
+          if (
+            contentType &&
+            contentType.includes("multipart/x-mixed-replace")
+          ) {
+            setError(
+              "Proxy connected, but the stream is currently interrupted.",
+            );
+          } else {
+            setError(
+              `Invalid Stream Format: Received ${contentType || "unknown"}`,
+            );
+          }
+        }
+        setIsPlaying(false);
+        return;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          setError(
+            "Proxy timed out. The camera is taking too long to respond.",
+          );
+        } else {
+          setError(
+            "Proxy Connection Failed. Ensure the backend server is running.",
+          );
+        }
+        setIsPlaying(false);
+        return;
+      }
+    }
+
+    setError(
+      isHttps && isStreamHttp
+        ? "Browser blocked HTTP stream on HTTPS site. Try opening the stream URL in a new tab once to 'Allow' it."
+        : "Failed to load stream. Please check the URL and try again.",
+    );
     setIsPlaying(false);
   };
 
@@ -102,6 +175,17 @@ export default function CCTVStream({
               title="Refresh Stream"
             >
               <RotateCcw className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setUseProxy(!useProxy)}
+              className={`p-2 rounded-lg border transition-all ${
+                useProxy
+                  ? "bg-blue-600 border-blue-500 text-white"
+                  : "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600"
+              }`}
+              title={useProxy ? "Direct Mode" : "Proxy Mode (TCP)"}
+            >
+              <Shield className="h-4 w-4" />
             </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -161,17 +245,28 @@ export default function CCTVStream({
           style={{ aspectRatio: "16/9" }}
         >
           {streamUrl && isPlaying ? (
-            <video
-              id="cctv-video"
-              src={streamUrl}
-              autoPlay
-              muted
-              loop
-              className="w-full h-full object-cover"
-              onError={handleVideoError}
-              onLoadStart={() => setIsLoading(true)}
-              onLoadedData={() => setIsLoading(false)}
-            />
+            useProxy ? (
+              <img
+                key={`proxy-${streamUrl}`}
+                src={`${SOCKET_URL}/api/cctv/proxy?url=${encodeURIComponent(streamUrl)}`}
+                className="w-full h-full object-cover"
+                onError={handleVideoError}
+                onLoadStart={() => setIsLoading(true)}
+                onLoad={() => setIsLoading(false)}
+              />
+            ) : (
+              <video
+                id="cctv-video"
+                src={streamUrl}
+                autoPlay
+                muted
+                loop
+                className="w-full h-full object-cover"
+                onError={handleVideoError}
+                onLoadStart={() => setIsLoading(true)}
+                onLoadedData={() => setIsLoading(false)}
+              />
+            )
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
               <div className="text-center">
