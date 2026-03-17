@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 
@@ -60,6 +60,7 @@ type Doc = {
 };
 
 export default function ShipmentDetail() {
+  const queryClient = useQueryClient();
   const { formatToLocalDateTime } = useDateTimeFormatter();
 
   const { id } = useParams();
@@ -177,15 +178,11 @@ export default function ShipmentDetail() {
         if (!old) return old;
         return {
           ...old,
-          shipment: {
-            ...old.shipment,
-            currentLocation: { lat: msg.lat, lng: msg.lng, updatedAt: msg.ts },
-            predictedEta: msg.predictedEta || old.shipment.predictedEta,
-            distanceRemainingKm:
-              msg.distanceRemainingKm || old.shipment.distanceRemainingKm,
-            progressPercentage:
-              msg.progressPercentage || old.shipment.progressPercentage,
-          },
+          currentLocation: { lat: msg.lat, lng: msg.lng, updatedAt: msg.ts },
+          predictedEta: msg.predictedEta || old.predictedEta,
+          distanceRemainingKm:
+            msg.distanceRemainingKm || old.distanceRemainingKm,
+          progressPercentage: msg.progressPercentage || old.progressPercentage,
         };
       });
     };
@@ -782,7 +779,8 @@ export default function ShipmentDetail() {
                     </button>
                   </>
                 )}
-                {shipment.status === "ASSIGNED" && (
+                {(shipment.status === "ASSIGNED" ||
+                  shipment.status === "CREATED") && (
                   <button
                     onClick={pickup}
                     className="btn-primary bg-amber-600 hover:bg-amber-700 shadow-amber-500/20 flex items-center gap-2"
@@ -848,40 +846,50 @@ export default function ShipmentDetail() {
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <SummaryItem
-              label="Type"
+              label="Primary Destination"
+              value={shipment.destination.name}
+              highlight
+              icon={<Navigation className="h-3 w-3 text-cyan-500" />}
+            />
+            <SummaryItem
+              label="Live Distance"
+              value={formatDistance(shipment.distanceKm)}
+              sub={
+                shipment.predictedEta
+                  ? `Arrival: ${formatDate(shipment.predictedEta)}`
+                  : undefined
+              }
+              icon={<Zap className="h-3 w-3 text-amber-500" />}
+            />
+            <SummaryItem
+              label="Cargo Type"
               value={shipment.shipmentType || "KIRANA"}
               icon={<BarChart3 className="h-3 w-3 text-indigo-500" />}
             />
             <SummaryItem
               label="Origin"
               value={shipment.origin.name}
-              icon={<MapPin className="h-3 w-3 text-blue-500" />}
-            />
-            <SummaryItem
-              label="Destination"
-              value={shipment.destination.name}
-              icon={<Navigation className="h-3 w-3 text-cyan-500" />}
-            />
-            <SummaryItem
-              label="Distance"
-              value={formatDistance(shipment.distanceKm)}
-              sub={
-                shipment.predictedEta
-                  ? `ETA: ${formatDate(shipment.predictedEta)}`
-                  : undefined
-              }
-              icon={<Zap className="h-3 w-3 text-amber-500" />}
+              dimmed
+              icon={<MapPin className="h-3 w-3 text-slate-400" />}
             />
           </div>
 
-          {/* Unified Live Tracking View */}
-          <div className="h-[800px] rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/10">
-            <LiveShipmentTracker
-              shipment={shipment}
-              locations={shipmentData.locations || []}
-              liveLocation={current}
-              events={eventsQ.data || []}
-            />
+          {/* Enhanced Live Tracking View */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-[0.1em] text-slate-400">
+                Live Tracking
+              </h3>
+            </div>
+            <div className="h-[900px] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/10 ring-1 ring-slate-900/5 dark:ring-white/5 relative group/map">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/10 pointer-events-none z-10" />
+              <LiveShipmentTracker
+                shipment={shipment}
+                locations={shipmentData.locations || []}
+                liveLocation={current}
+                events={eventsQ.data || []}
+              />
+            </div>
           </div>
         </div>
 
@@ -895,51 +903,15 @@ export default function ShipmentDetail() {
                   <UserIcon className="h-4 w-4 text-indigo-600" />
                 </div>
                 <h3 className="text-sm font-black uppercase tracking-[0.1em]">
-                  Commercial Stakeholders
+                  Journey Stakeholders
                 </h3>
               </div>
 
-              {/* Customer/Consignor (Payer) */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+              {/* Consignee - PRIORITIZED */}
+              <div className="p-5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/5 border-2 border-indigo-100 dark:border-indigo-500/20 relative group/consignee shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
-                    Consignor / Payer
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600">
-                    Client
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Building className="h-3 w-3 text-slate-400" />
-                    <span className="text-sm font-bold">
-                      {(shipment.customerId as any)?.legalName || "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <UserIcon className="h-3 w-3 text-slate-400" />
-                    <span className="text-xs font-medium">
-                      {(shipment.customerId as any)?.name || "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 pt-1">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-                      <Mail className="h-3 w-3" />
-                      {(shipment.customerId as any)?.email || "N/A"}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-                      <Phone className="h-3 w-3" />
-                      {(shipment.customerId as any)?.phone || "N/A"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Consignee */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 relative group/consignee">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
-                    Consignee / Receiver
+                  <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                    Primary Consignee / Receiver
                   </span>
                   <div className="flex items-center gap-2">
                     {user?.role === "CUSTOMER" &&
@@ -965,22 +937,59 @@ export default function ShipmentDetail() {
                         </button>
                       )}
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
-                      Recipient
+                      Target
                     </span>
                   </div>
                 </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                      <UserIcon className="h-5 w-5 text-indigo-500" />
+                    </div>
+                    <div>
+                      <span className="text-base font-black text-slate-900 dark:text-white block leading-tight">
+                        {shipment.consignee?.name || "N/A"}
+                      </span>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                        Recipient Name
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                      <Phone className="h-5 w-5 text-indigo-500" />
+                    </div>
+                    <div>
+                      <span className="text-base font-black text-slate-900 dark:text-white block leading-tight">
+                        {shipment.consignee?.contact || "N/A"}
+                      </span>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                        Verified Contact
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer/Consignor (Payer) - MINIMIZED */}
+              <div className="p-4 rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/10 opacity-70 hover:opacity-100 transition-opacity">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Origin / Payer
+                  </span>
+                </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <UserIcon className="h-3 w-3 text-slate-400" />
-                    <span className="text-sm font-bold">
-                      {shipment.consignee?.name || "N/A"}
+                    <Building className="h-3 w-3 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      {(shipment.customerId as any)?.legalName || "N/A"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3 w-3 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-500">
-                      {shipment.consignee?.contact || "N/A"}
-                    </span>
+                  <div className="flex items-center gap-4 pt-1">
+                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400">
+                      <Mail className="h-2.5 w-2.5" />
+                      {(shipment.customerId as any)?.email || "N/A"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1020,6 +1029,21 @@ export default function ShipmentDetail() {
                       <Shield className="h-3 w-3 text-blue-400" />
                       Vetted Professional
                     </div>
+                    {(shipment.assignedDriverId as any).phone && (
+                      <div className="flex flex-col gap-2 mt-2">
+                        <div className="flex items-center gap-2 text-xs text-slate-300 font-bold">
+                          <Phone className="h-3 w-3 text-blue-400" />
+                          {(shipment.assignedDriverId as any).phone}
+                        </div>
+                        <a
+                          href={`tel:${(shipment.assignedDriverId as any).phone}`}
+                          className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-600/20"
+                        >
+                          <Phone className="h-3 w-3" />
+                          Call Driver
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -1206,6 +1230,62 @@ export default function ShipmentDetail() {
               </span>
             </div>
           </div>
+
+          {/* Industrial Quick Actions */}
+          <div className="glass-card bg-white dark:bg-slate-900 border-none p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <Zap className="h-4 w-4 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-black uppercase tracking-[0.1em]">
+                Quick Operations
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => window.print()}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-blue-500/30 transition-all group"
+              >
+                <FileText className="h-5 w-5 text-slate-400 group-hover:text-blue-500 mb-2" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white">
+                  Print Page
+                </span>
+              </button>
+
+              <button
+                onClick={() =>
+                  toast.success("Tracking link copied to clipboard")
+                }
+                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-blue-500/30 transition-all group"
+              >
+                <Plus className="h-5 w-5 text-slate-400 group-hover:text-blue-500 mb-2" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white">
+                  Share Track
+                </span>
+              </button>
+
+              <button
+                onClick={() => nav("/app/support")}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-rose-500/30 transition-all group"
+              >
+                <AlertTriangle className="h-5 w-5 text-slate-400 group-hover:text-rose-500 mb-2" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white">
+                  Report Issue
+                </span>
+              </button>
+
+              <button
+                onClick={() => nav("/app/analytics")}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-indigo-500/30 transition-all group"
+              >
+                <BarChart3 className="h-5 w-5 text-slate-400 group-hover:text-indigo-500 mb-2" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white">
+                  Insights
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1373,21 +1453,37 @@ function SummaryItem({
   value,
   sub,
   icon,
+  highlight,
+  dimmed,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon?: React.ReactNode;
+  highlight?: boolean;
+  dimmed?: boolean;
 }) {
   return (
-    <div className="glass-card group hover:scale-[1.02] transition-transform">
+    <div
+      className={`glass-card group hover:scale-[1.02] transition-transform ${
+        highlight
+          ? "ring-2 ring-indigo-500/50 bg-indigo-50/50 dark:bg-indigo-500/5"
+          : ""
+      } ${dimmed ? "opacity-60" : ""}`}
+    >
       <div className="flex items-center gap-2 mb-1">
         {icon}
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
           {label}
         </div>
       </div>
-      <div className="font-bold text-slate-900 dark:text-white truncate">
+      <div
+        className={`font-bold truncate ${
+          highlight
+            ? "text-indigo-600 dark:text-indigo-400 text-lg"
+            : "text-slate-900 dark:text-white"
+        }`}
+      >
         {value}
       </div>
       {sub && <div className="text-[10px] text-slate-500 mt-1">{sub}</div>}

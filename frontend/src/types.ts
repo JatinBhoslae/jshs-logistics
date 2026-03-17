@@ -38,6 +38,10 @@ export type Shipment = {
   proofOfLoadingVerifiedAt?: string
   proofOfLoadingVerifiedBy?: string
   loadingStatus?: 'PENDING' | 'LOADED' | 'UNLOADED'
+  assignedAt?: string
+  pickedUpAt?: string
+  transitStartedAt?: string
+  deliveredAt?: string
   loadedAt?: string
   loadedBy?: string
   unloadedAt?: string

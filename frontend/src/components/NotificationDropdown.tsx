@@ -40,8 +40,14 @@ export default function NotificationDropdown() {
                 navigate('/app/iot-monitor');
             }
             setIsOpen(false);
+        } else if (n.type === 'SHIPMENT_CREATED' && user?.role === 'MANAGER') {
+            navigate('/app/approvals');
+            setIsOpen(false);
         } else if (n.metadata?.shipmentId) {
             navigate(`/app/shipment/${n.metadata.shipmentId}`);
+            setIsOpen(false);
+        } else if (n.type === 'PAYMENT_SUCCESS' && user?.role === 'CUSTOMER') {
+            navigate('/app/payments');
             setIsOpen(false);
         }
     }

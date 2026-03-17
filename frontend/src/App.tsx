@@ -1,44 +1,45 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
+import { Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
-import { ProtectedRoute } from './auth/ProtectedRoute'
-import { Layout } from './components/Layout'
+import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { Layout } from "./components/Layout";
 
-import Landing from './pages/common/Landing'
-import Login from './pages/common/Login'
-import Register from './pages/common/Register'
-import ForgotPassword from './pages/common/ForgotPassword'
-import Dashboard from './pages/common/Dashboard'
-import Shipments from './pages/common/Shipments'
-import ShipmentDetail from './pages/common/ShipmentDetail'
-import Fleet from './pages/manager/Fleet'
-import FleetPerformance from './pages/manager/FleetPerformance'
-import Payments from './pages/common/Payments'
-import Analytics from './pages/manager/Analytics'
-import Driver from './pages/driver/Driver'
-import Drivers from './pages/manager/Drivers'
-import DriverDetail from './pages/manager/DriverDetail'
-import Notifications from './pages/common/Notifications'
-import AuditLogs from './pages/manager/AuditLogs'
-import DriverEarnings from './pages/driver/DriverEarnings'
-import CustomerCreateShipment from './pages/customer/CustomerCreateShipment'
-import PendingApprovals from './pages/manager/PendingApprovals'
-import Documents from './pages/manager/Documents'
-import IotMonitor from './pages/manager/IotMonitor'
-import Profile from './pages/common/Profile'
-import OnboardingHub from './pages/manager/onboarding/OnboardingHub'
-import VehicleOnboarding from './pages/manager/onboarding/VehicleOnboarding'
-import DriverOnboarding from './pages/manager/onboarding/DriverOnboarding'
-import { getAppType } from './utils/subdomainUtils'
-import VapiWidget from './components/VapiWidget'
+import Landing from "./pages/common/Landing";
+import Login from "./pages/common/Login";
+import Register from "./pages/common/Register";
+import ForgotPassword from "./pages/common/ForgotPassword";
+import Dashboard from "./pages/common/Dashboard";
+import Shipments from "./pages/common/Shipments";
+import ShipmentDetail from "./pages/common/ShipmentDetail";
+import ManagerShipmentDetail from "./pages/manager/ManagerShipmentDetail";
+import Fleet from "./pages/manager/Fleet";
+import FleetPerformance from "./pages/manager/FleetPerformance";
+import Payments from "./pages/common/Payments";
+import Analytics from "./pages/manager/Analytics";
+import Driver from "./pages/driver/Driver";
+import Drivers from "./pages/manager/Drivers";
+import DriverDetail from "./pages/manager/DriverDetail";
+import Notifications from "./pages/common/Notifications";
+import AuditLogs from "./pages/manager/AuditLogs";
+import DriverEarnings from "./pages/driver/DriverEarnings";
+import CustomerCreateShipment from "./pages/customer/CustomerCreateShipment";
+import PendingApprovals from "./pages/manager/PendingApprovals";
+import Documents from "./pages/manager/Documents";
+import IotMonitor from "./pages/manager/IotMonitor";
+import Profile from "./pages/common/Profile";
+import OnboardingHub from "./pages/manager/onboarding/OnboardingHub";
+import VehicleOnboarding from "./pages/manager/onboarding/VehicleOnboarding";
+import DriverOnboarding from "./pages/manager/onboarding/DriverOnboarding";
+import { getAppType } from "./utils/subdomainUtils";
+import VapiWidget from "./components/VapiWidget";
 
 export default function App() {
-  const appType = getAppType()
-  const isCustomer = appType === 'CUSTOMER'
-  const isManager = appType === 'MANAGER'
+  const appType = getAppType();
+  const isCustomer = appType === "CUSTOMER";
+  const isManager = appType === "MANAGER";
 
-  const vapiApiKey = import.meta.env.VITE_VAPI_PUBLIC_API_KEY
-  const vapiAssistantId = import.meta.env.VITE_VAPI_ASSISTANT_ID
+  const vapiApiKey = import.meta.env.VITE_VAPI_PUBLIC_API_KEY;
+  const vapiAssistantId = import.meta.env.VITE_VAPI_ASSISTANT_ID;
 
   return (
     <>
@@ -49,14 +50,16 @@ export default function App() {
       <Routes>
         <Route
           path="/"
-          element={isCustomer ? <Landing /> : <Navigate to="/app/dashboard" replace />}
+          element={
+            isCustomer ? <Landing /> : <Navigate to="/app/dashboard" replace />
+          }
         />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        
+
         {/* Direct Manager Access Route */}
         <Route path="/manager" element={<Login managerMode={true} />} />
-        
+
         {/* Managers cannot register; they must be seeded/created by admins */}
         <Route
           path="/register"
@@ -74,13 +77,16 @@ export default function App() {
           <Route index element={<Navigate to="/app/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="shipments" element={<Shipments />} />
-          <Route path="shipment/:id" element={<ShipmentDetail />} />
+          <Route
+            path="shipment/:id"
+            element={isManager ? <ManagerShipmentDetail /> : <ShipmentDetail />}
+          />
 
           {/* Customer Specific */}
           <Route
             path="create-shipment"
             element={
-              <ProtectedRoute roles={['CUSTOMER']}>
+              <ProtectedRoute roles={["CUSTOMER"]}>
                 <CustomerCreateShipment />
               </ProtectedRoute>
             }
@@ -89,7 +95,7 @@ export default function App() {
           <Route
             path="fleet"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <Fleet />
               </ProtectedRoute>
             }
@@ -97,7 +103,7 @@ export default function App() {
           <Route
             path="fleet-performance"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <FleetPerformance />
               </ProtectedRoute>
             }
@@ -105,7 +111,7 @@ export default function App() {
           <Route
             path="iot-monitor"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <IotMonitor />
               </ProtectedRoute>
             }
@@ -113,7 +119,7 @@ export default function App() {
           <Route
             path="drivers"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <Drivers />
               </ProtectedRoute>
             }
@@ -123,7 +129,7 @@ export default function App() {
           <Route
             path="onboarding"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <OnboardingHub />
               </ProtectedRoute>
             }
@@ -131,7 +137,7 @@ export default function App() {
           <Route
             path="onboarding/vehicle"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <VehicleOnboarding />
               </ProtectedRoute>
             }
@@ -139,7 +145,7 @@ export default function App() {
           <Route
             path="onboarding/driver"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <DriverOnboarding />
               </ProtectedRoute>
             }
@@ -149,7 +155,7 @@ export default function App() {
           <Route
             path="approvals"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <PendingApprovals />
               </ProtectedRoute>
             }
@@ -157,7 +163,7 @@ export default function App() {
           <Route
             path="documents"
             element={
-              <ProtectedRoute roles={['MANAGER', 'DRIVER', 'CUSTOMER']}>
+              <ProtectedRoute roles={["MANAGER", "DRIVER", "CUSTOMER"]}>
                 <Documents />
               </ProtectedRoute>
             }
@@ -165,7 +171,7 @@ export default function App() {
           <Route
             path="documents/:category"
             element={
-              <ProtectedRoute roles={['MANAGER', 'DRIVER', 'CUSTOMER']}>
+              <ProtectedRoute roles={["MANAGER", "DRIVER", "CUSTOMER"]}>
                 <Documents />
               </ProtectedRoute>
             }
@@ -177,7 +183,7 @@ export default function App() {
           <Route
             path="earnings"
             element={
-              <ProtectedRoute roles={['DRIVER']}>
+              <ProtectedRoute roles={["DRIVER"]}>
                 <DriverEarnings />
               </ProtectedRoute>
             }
@@ -186,7 +192,7 @@ export default function App() {
           <Route
             path="analytics"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <Analytics />
               </ProtectedRoute>
             }
@@ -194,7 +200,7 @@ export default function App() {
           <Route
             path="audit"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <AuditLogs />
               </ProtectedRoute>
             }
@@ -202,7 +208,7 @@ export default function App() {
           <Route
             path="driver"
             element={
-              <ProtectedRoute roles={['DRIVER']}>
+              <ProtectedRoute roles={["DRIVER"]}>
                 <Driver />
               </ProtectedRoute>
             }
@@ -210,7 +216,7 @@ export default function App() {
           <Route
             path="driver/:id"
             element={
-              <ProtectedRoute roles={['MANAGER']}>
+              <ProtectedRoute roles={["MANAGER"]}>
                 <DriverDetail />
               </ProtectedRoute>
             }
@@ -222,5 +228,5 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
-  )
+  );
 }

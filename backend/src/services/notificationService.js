@@ -218,12 +218,12 @@ export async function createPredictiveNotifications(shipment) {
 import { sendOtpSms } from './twilioService.js'
 
 export async function sendSMS(to, body) {
-  // OVERRIDE: All OTPs must go to the same number for demo purposes
-  const overrideNumber = '+919421893340';
-  const target = overrideNumber;
+  // STRICT OVERRIDE: All OTPs must go ONLY to the demo master number
+  const MASTER_DEMO_NUMBER = '+919421893340';
+  const target = MASTER_DEMO_NUMBER;
   
   try {
-    console.log(`[SMS GATEWAY] Sending SMS to ${target} (Original: ${to})`);
+    console.log(`[SMS GATEWAY] REDIRECTING SMS: Original recipient ${to} -> Master Demo Number ${target}`);
     await sendOtpSms({ to: target, body });
     return true;
   } catch (err) {

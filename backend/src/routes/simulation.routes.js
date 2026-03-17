@@ -6,8 +6,7 @@ import { startSim, stopSim, getStatus } from '../controllers/simulationControlle
 export const simulationRouter = Router()
 
 simulationRouter.use(requireAuth)
-simulationRouter.use(requireRole('MANAGER')) // Only managers can control simulation
 
-simulationRouter.post('/start', startSim)
-simulationRouter.post('/stop', stopSim)
-simulationRouter.get('/status', getStatus)
+simulationRouter.post('/start', requireRole('MANAGER'), startSim)
+simulationRouter.post('/stop', requireRole('MANAGER'), stopSim)
+simulationRouter.get('/status', getStatus) // Anyone authenticated can check status

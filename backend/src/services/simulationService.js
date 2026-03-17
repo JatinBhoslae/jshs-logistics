@@ -20,7 +20,14 @@ export function startSimulation() {
     try {
       const shipments = await Shipment.find({
         status: {
-          $in: ["DISPATCHED", "IN_TRANSIT", "OUT_FOR_DELIVERY", "PICKED_UP"],
+          $in: [
+            "CREATED",
+            "ASSIGNED",
+            "DISPATCHED",
+            "IN_TRANSIT",
+            "OUT_FOR_DELIVERY",
+            "PICKED_UP",
+          ],
         },
       });
 
@@ -56,9 +63,21 @@ export function startSimulation() {
           }
         }
 
-        if (!s.routeGeoJson || !s.routeGeoJson.coordinates) continue;
+        // Extract coordinates from GeoJSON
+        let routePoints = [];
+        if (s.routeGeoJson?.coordinates) {
+          routePoints = s.routeGeoJson.coordinates;
+        } else if (s.routeGeoJson?.type === "FeatureCollection") {
+          // Combine coordinates from all LineString features
+          s.routeGeoJson.features.forEach((f) => {
+            if (f.geometry?.type === "LineString") {
+              routePoints.push(...f.geometry.coordinates);
+            }
+          });
+        }
 
-        const routePoints = s.routeGeoJson.coordinates; // [[lng, lat]]
+        if (!routePoints || routePoints.length < 2) continue;
+
         let idx = s.currentRouteIndex || 0;
 
         // Move forward by constant steps (e.g. 5 points per tick to be visible)

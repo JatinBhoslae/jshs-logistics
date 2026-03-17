@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import type { Socket } from 'socket.io-client'
 
 import { api } from '../lib/api'
-import { connectSocket } from '../lib/socket'
+import { connectSocket, connectCCTVSocket } from '../lib/socket'
 
 export type Role = 'MANAGER' | 'DRIVER' | 'CUSTOMER'
 export type DriverApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -42,6 +42,7 @@ type AuthContextValue = {
   token: string | null
   user: User | null
   socket: Socket | null
+  cctvSocket: Socket | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<User>
   register: (payload: RegisterPayload) => Promise<User>
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const [socket, setSocket] = useState<Socket | null>(null)
+  const [cctvSocket, setCctvSocket] = useState<Socket | null>(null)
 
   // Verify session on mount
   useEffect(() => {
@@ -87,17 +89,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) {
       socket?.disconnect()
+      cctvSocket?.disconnect()
       setSocket(null)
+      setCctvSocket(null)
       return
     }
 
     socket?.disconnect()
+    cctvSocket?.disconnect()
+
     const s = connectSocket(token)
     setSocket(s)
 
+    const cs = connectCCTVSocket(token)
+    setCctvSocket(cs)
+
     return () => {
       s.disconnect()
+      cs.disconnect()
       setSocket(null)
+      setCctvSocket(null)
     }
     // Intentionally ignore `socket` to avoid re-connecting in a loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,13 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    socket?.disconnect()
+    cctvSocket?.disconnect()
     setToken(null)
     setUser(null)
   }
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, user, socket, isLoading, login, register, logout }),
-    [token, user, socket, isLoading]
+    () => ({ token, user, socket, cctvSocket, isLoading, login, register, logout }),
+    [token, user, socket, cctvSocket, isLoading]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

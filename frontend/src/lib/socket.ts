@@ -11,3 +11,13 @@ export function connectSocket(token: string): Socket {
     reconnectionAttempts: 5,
   })
 }
+
+export function connectCCTVSocket(token: string): Socket {
+  return io(`${SOCKET_URL}/cctv`, {
+    transports: ['polling', 'websocket'],
+    auth: { token },
+    withCredentials: true,
+    reconnection: true,
+    reconnectionAttempts: 5,
+  })
+}

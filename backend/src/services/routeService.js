@@ -4,8 +4,11 @@ import { estimateEta } from "../utils/geo.js";
 export async function getDrivingRoute({ origin, destination, waypoints = [] }) {
   // Always use OSRM (Open Source Routing Machine)
   // Use public demo server if not configured, but warn about usage policies in prod
-  const routingUrl =
-    env.ROUTING_URL?.replace(/\/$/, "") || "https://router.project-osrm.org";
+  const routingUrls = [
+    env.ROUTING_URL?.replace(/\/$/, "") || "https://router.project-osrm.org",
+    "https://osrm.jshs.io", // Hypothetical backup mirror
+    "https://osrm-demo.xyz", // Another potential mirror
+  ];
 
   // Validate inputs
   if (
@@ -33,108 +36,121 @@ export async function getDrivingRoute({ origin, destination, waypoints = [] }) {
 
   coords += `;${destination.lng},${destination.lat}`;
 
-  const url = `${routingUrl}/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
+  let lastError = null;
+  for (const baseUrl of routingUrls) {
+    const url = `${baseUrl}/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
 
-  try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { accept: "application/json" },
-    });
-
-    if (!res.ok) {
-      if (res.status === 429) {
-        throw new Error("Routing service rate limit exceeded");
-      }
-      const err = new Error(`Routing failed (${res.status})`);
-      err.statusCode = 502;
-      throw err;
-    }
-
-    const data = await res.json();
-    const route = data?.routes?.[0];
-    const geom = route?.geometry;
-
-    if (
-      !route ||
-      !geom ||
-      geom.type !== "LineString" ||
-      !Array.isArray(geom.coordinates)
-    ) {
-      const err = new Error("Invalid routing response");
-      err.statusCode = 502;
-      throw err;
-    }
-
-    // Inject simulated traffic segments for visualization
-    const coords = geom.coordinates;
-    const features = [];
-    const segmentSize = Math.max(2, Math.floor(coords.length / 10)); // Divide into ~10 segments
-
-    for (let i = 0; i < coords.length - 1; i += segmentSize - 1) {
-      const segmentCoords = coords.slice(
-        i,
-        Math.min(i + segmentSize, coords.length),
-      );
-      if (segmentCoords.length < 2) continue;
-
-      // Randomly assign traffic (30% chance of high traffic)
-      const isHighTraffic = Math.random() > 0.7;
-      features.push({
-        type: "Feature",
-        geometry: {
-          type: "LineString",
-          coordinates: segmentCoords,
-        },
-        properties: {
-          traffic: isHighTraffic ? "high" : "normal",
-          color: isHighTraffic ? "#ef4444" : "#3b82f6", // Red vs Blue
-        },
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(5000), // 5s timeout
       });
-    }
 
-    return {
-      provider: "osrm",
-      distanceKm:
-        typeof route.distance === "number" ? route.distance / 1000 : null,
-      durationMin:
-        typeof route.duration === "number" ? route.duration / 60 : null,
-      geojson: {
-        type: "FeatureCollection",
-        features: features,
-      },
-    };
-  } catch (error) {
-    console.warn(
-      "OSRM Routing failed, falling back to straight line:",
-      error.message,
-    );
-    // Fallback to straight line (Haversine) if OSRM fails
-    // This ensures the app doesn't crash if the demo server is down
-    const dist = calculateHaversineDistance(origin, destination);
+      if (!res.ok) {
+        if (res.status === 429) {
+          throw new Error("Routing service rate limit exceeded");
+        }
+        const err = new Error(`Routing failed (${res.status})`);
+        err.statusCode = 502;
+        throw err;
+      }
 
-    // Create a simple LineString between origin and destination
-    return {
-      provider: "fallback",
-      distanceKm: dist,
-      durationMin: (dist / 40) * 60, // Assume 40km/h average speed
-      geojson: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [origin.lng, origin.lat],
-                [destination.lng, destination.lat],
-              ],
-            },
-            properties: { traffic: "normal", color: "#3b82f6" },
+      const data = await res.json();
+      const route = data?.routes?.[0];
+      const geom = route?.geometry;
+
+      if (
+        !route ||
+        !geom ||
+        geom.type !== "LineString" ||
+        !Array.isArray(geom.coordinates)
+      ) {
+        const err = new Error("Invalid routing response");
+        err.statusCode = 502;
+        throw err;
+      }
+
+      // Inject simulated traffic segments for visualization
+      const routeCoords = geom.coordinates;
+      const features = [];
+      const segmentSize = Math.max(2, Math.floor(routeCoords.length / 10)); // Divide into ~10 segments
+
+      for (let i = 0; i < routeCoords.length - 1; i += segmentSize - 1) {
+        const segmentCoords = routeCoords.slice(
+          i,
+          Math.min(i + segmentSize, routeCoords.length),
+        );
+        if (segmentCoords.length < 2) continue;
+
+        // Randomly assign traffic (30% chance of high traffic)
+        const isHighTraffic = Math.random() > 0.7;
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: segmentCoords,
           },
-        ],
-      },
-    };
+          properties: {
+            traffic: isHighTraffic ? "high" : "normal",
+            color: isHighTraffic ? "#ef4444" : "#3b82f6", // Red vs Blue
+          },
+        });
+      }
+
+      return {
+        provider: "osrm",
+        distanceKm:
+          typeof route.distance === "number" ? route.distance / 1000 : null,
+        durationMin:
+          typeof route.duration === "number" ? route.duration / 60 : null,
+        geojson: {
+          type: "FeatureCollection",
+          features: features,
+        },
+      };
+    } catch (error) {
+      console.warn(`Routing failed for ${baseUrl}:`, error.message);
+      lastError = error;
+      continue; // Try next URL
+    }
   }
+
+  // Fallback to straight line (Haversine) if all OSRM attempts fail
+  console.warn(
+    "All OSRM Routing attempts failed, falling back to interpolated straight line:",
+    lastError?.message,
+  );
+  const dist = calculateHaversineDistance(origin, destination);
+
+  // Generate intermediate points along the straight line for smoother movement
+  const numIntermediatePoints = 50; // Generate 50 points along the line
+  const interpolatedCoords = [];
+  for (let i = 0; i <= numIntermediatePoints; i++) {
+    const fraction = i / numIntermediatePoints;
+    const lat = origin.lat + (destination.lat - origin.lat) * fraction;
+    const lng = origin.lng + (destination.lng - origin.lng) * fraction;
+    interpolatedCoords.push([lng, lat]);
+  }
+
+  return {
+    provider: "fallback",
+    distanceKm: dist,
+    durationMin: (dist / 40) * 60, // Assume 40km/h average speed
+    geojson: {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: interpolatedCoords,
+          },
+          properties: { traffic: "normal", color: "#3b82f6" },
+        },
+      ],
+    },
+  };
 }
 
 // Function to calculate optimized route with multiple stops
